@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brject - ログイン</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #1e3c72, #2a5298);
+      color: #fff;
+      text-align: center;
+      padding-top: 50px;
+    }
+    .container {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 30px;
+      border-radius: 12px;
+      display: inline-block;
+      min-width: 300px;
+    }
+    input {
+      padding: 8px;
+      border-radius: 4px;
+      border: none;
+      margin-top: 10px;
+      width: 90%;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      background: #ffb347;
+      color: #222;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    button:hover {
+      background: #ffcc70;
+    }
+    #setup-section {
+      display: none;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Brject</h1>
+    <p>ログインまたは新規登録してください。</p>
+    <input type="email" id="email" placeholder="メールアドレス" /><br />
+    <input type="password" id="password" placeholder="パスワード" /><br />
+    <button id="login-btn">ログイン</button>
+    <button id="signup-btn">新規登録</button>
+
+    <div id="setup-section">
+      <h3>初期設定</h3>
+      <input type="text" id="player-name" placeholder="プレイヤー名を入力" />
+      <button id="start-btn">ゲーム開始</button>
+    </div>
+  </div>
+
+  <script type="module">
+    // Firebase初期化
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword }
+      from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCTUu8yTqFsV1hscYcdMYSgEDV7Tzg5Qqs",
+      authDomain: "brject-3c32c.firebaseapp.com",
+      projectId: "brject-3c32c",
+      storageBucket: "brject-3c32c.firebasestorage.app",
+      messagingSenderId: "963616343395",
+      appId: "1:963616343395:web:eb0b00c38a3ae5cf7eff56"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const loginBtn = document.getElementById("login-btn");
+    const signupBtn = document.getElementById("signup-btn");
+    const setupSection = document.getElementById("setup-section");
+
+    // ログイン処理
+    loginBtn.addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("ログイン成功！");
+        setupSection.style.display = "block";
+      } catch (error) {
+        alert("ログイン失敗: " + error.message);
+      }
+    });
+
+    // 新規登録処理
+    signupBtn.addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        alert("登録成功！そのままログインしてください。");
+      } catch (error) {
+        alert("登録失敗: " + error.message);
+      }
+    });
+
+    // プレイヤー名設定
+    document.getElementById("start-btn").addEventListener("click", () => {
+      const playerName = document.getElementById("player-name").value;
+      if (playerName.trim() === "") {
+        alert("プレイヤー名を入力してください");
+        return;
+      }
+      localStorage.setItem("playerName", playerName);
+      window.location.href = "game.html";
+    });
+  </script>
+</body>
+</html>
