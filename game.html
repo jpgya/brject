@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brject - 3D Multiplayer</title>
+<style>
+body { margin:0; overflow:hidden; font-family:'Segoe UI', sans-serif; }
+#menu {
+position:absolute; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.7); color:#fff; display:none;
+flex-direction:column; align-items:center; justify-content:center; z-index:10;
+}
+#menu button { margin:5px; padding:10px 20px; font-size:1rem; cursor:pointer; border:none; border-radius:8px; background:#ffcc00; color:#000; transition:0.3s;}
+#menu button:hover{background:#ffaa00;}
+#settings-panel { display:flex; flex-direction:column; align-items:center; margin-top:10px; }
+#settings-panel label{ margin:5px; }
+</style>
+</head>
+<body>
+<div id="menu">
+<h2>メニュー</h2>
+<button id="friend-list">フレンド一覧</button>
+<button id="friend-request">フレンド申請</button>
+<button id="settings">設定</button>
+<button id="back-lobby">ロビーに戻る</button>
+<div id="settings-panel" style="display:none;">
+<label>感度<input type="range" id="sensitivity" min="0.05" max="1" step="0.05" value="0.2"></label>
+<label>FPS制限<input type="number" id="fps-limit" min="30" max="144" value="60"></label>
+<label>前進<input type="text" id="key-forward" value="w"></label>
+<label>後退<input type="text" id="key-back" value="s"></label>
+<label>左移動<input type="text" id="key-left" value="a"></label>
+<label>右移動<input type="text" id="key-right" value="d"></label>
+</div>
+</div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js";
+
+const firebaseConfig = { apiKey:"AIzaSyCTUu8yTqFsV1hscYcdMYSgEDV7Tzg5Qqs", authDomain:"brject-3c32c.firebaseapp.com", projectId:"brject-3c32c", storageBucket:"brject-3c32c.firebasestorage.app", messagingSenderId:"963616343395", appId:"1:963616343395:web:eb0b00c38a3ae5cf7eff56"};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const plane = new THREE.Mesh(new THREE.PlaneGeometry(100,100), new THREE.MeshPhongMaterial({color:0x228B22}));
+plane.rotation.x=-Math.PI/2; scene.add(plane);
+scene.add(new THREE.AmbientLight(0xffffff,0.7));
+const directional = new THREE.DirectionalLight(0xffffff,0.5); directional.position.set(10,20,10); scene.add(directional);
+
+const playerMesh = new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color:0x00ff00})); playerMesh.position.set(0,1,0); scene.add(playerMesh);
+const otherPlayers = {};
+camera.position.set(0,5,10); camera.lookAt(playerMesh.position);
+
+function createNameSprite(name){
+const canvas=document.createElement('canvas'); const ctx=canvas.getContext('2d');
+ctx.font='Bold 24px Arial'; ctx.fillStyle='white'; ctx.fillText(name,0,24);
+const texture=new THREE.CanvasTexture(canvas);
+const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture}));
+sprite.scale.set(3,1.5,1); return sprite;
+}
+
+const keys={};
+document.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()] = true; });
+document.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+let sensitivity = parseFloat(document.getElementById('sensitivity').value);
+let fpsLimit = parseInt(document.getElementById('fps-limit').value);
+let keyForward = document.getElementById('key-forward').value.toLowerCase();
+let keyBack = document.getElementById('key-back').value.toLowerCase();
+let keyLeft = document.getElementById('key-left').value.toLowerCase();
+let keyRight = document.getElementById('key-right').value.toLowerCase();
+
+document.getElementById('sensitivity').addEventListener('input', e=>{sensitivity=parseFloat(e.target.value);});
+document.getElementById('fps-limit').addEventListener('input', e=>{fpsLimit=parseInt(e.target.value);});
+document.getElementById('key-forward').addEventListener('input', e=>{keyForward=e.target.value.toLowerCase();});
+document.getElementById('key-back').addEventListener('input', e=>{keyBack=e.target.value.toLowerCase();});
+document.getElementById('key-left').addEventListener('input', e=>{keyLeft=e.target.value.toLowerCase();});
+document.getElementById('key-right').addEventListener('input', e=>{keyRight=e.target.value.toLowerCase();});
+
+function movePlayer(){
+let speed = sensitivity;
+if(keys[keyForward]) playerMesh.position.z -= speed;
+if(keys[keyBack]) playerMesh.position.z += speed;
+if(keys[keyLeft]) playerMesh.position.x -= speed;
+if(keys[keyRight]) playerMesh.position.x += speed;
+}
+
+const menuDiv = document.getElementById('menu');
+document.addEventListener('keydown', e=>{
+if(e.key==="Escape"||e.key==="F10"){ menuDiv.style.display = menuDiv.style.display==='flex'?'none':'flex'; menuDiv.style.flexDirection='column'; }
+});
+document.getElementById('settings').addEventListener('click', ()=>{ document.getElementById('settings-panel').style.display='flex'; });
+
+document.getElementById('back-lobby').addEventListener('click', ()=>window.location.href='lobby.html');
+
+let currentUserUid = null;
+onAuthStateChanged(auth, async user=>{
+if(!user){ window.location.href='index.html'; return; }
+currentUserUid = user.uid;
+const userRef = doc(db,"players",currentUserUid);
+setDoc(userRef,{x:playerMesh.position.x, y:playerMesh.position.y, z:playerMesh.position.z, playerName:user.displayName||"Player", skin:"default"}, {merge:true});
+
+const playersRef = collection(db,"players");
+onSnapshot(playersRef, snapshot=>{
+snapshot.docChanges().forEach(change=>{
+const uid=change.doc.id; const data=change.doc.data(); 
+if(uid===currentUserUid) return;
+if(change.type==="added"||change.type==="modified"){
+if(!otherPlayers[uid]){
+const mesh=new THREE.Mesh(new THREE.BoxGeometry(1,2,1), new THREE.MeshStandardMaterial({color:0xff0000}));
+mesh.position.set(data.x,data.y,data.z); scene.add(mesh);
+const nameSprite=createNameSprite(data.playerName||"Player");
+nameSprite.position.set(data.x,data.y+2.5,data.z); scene.add(nameSprite);
+otherPlayers[uid]={mesh,nameSprite};
+}else{
+otherPlayers[uid].mesh.position.set(data.x,data.y,data.z);
+otherPlayers[uid].nameSprite.position.set(data.x,data.y+2.5,data.z);
+}}else if(change.type==="removed"){ scene.remove(otherPlayers[uid].mesh); scene.remove(otherPlayers[uid].nameSprite); delete otherPlayers[uid]; }
+});
+});
+});
+
+let lastFrame = 0;
+function animate(time){
+requestAnimationFrame(animate);
+const delta = (time - lastFrame)/1000;
+if(delta < 1/fpsLimit) return;
+lastFrame = time;
+movePlayer();
+if(currentUserUid){
+const userRef=doc(db,"players",currentUserUid);
+setDoc(userRef,{x:playerMesh.position.x,y:playerMesh.position.y,z:playerMesh.position.z}, {merge:true});
+}
+camera.position.x = playerMesh.position.x;
+camera.position.z = playerMesh.position.z +10;
+camera.position.y = playerMesh.position.y +5;
+camera.lookAt(playerMesh.position);
+renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
