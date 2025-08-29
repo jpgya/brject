@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brject - Lobby</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 2.5rem;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    }
+
+    #player-list, #skin-selection {
+      margin-top: 30px;
+      width: 80%;
+      max-width: 400px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .player-item {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .player-item:last-child {
+      border-bottom: none;
+    }
+
+    #skins {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+
+    #skins button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #ffcc00;
+      color: #000;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    #skins button:hover {
+      background: #ffaa00;
+    }
+
+    #start-game {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #ffcc00;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #start-game:hover {
+      background: #ffaa00;
+    }
+  </style>
+</head>
+<body>
+  <h1>Brject Lobby</h1>
+
+  <!-- プレイヤー一覧 -->
+  <div id="player-list">
+    <h3>参加中のプレイヤー</h3>
+    <div id="players"></div>
+  </div>
+
+  <!-- スキン選択 -->
+  <div id="skin-selection">
+    <h3>スキン選択</h3>
+    <div id="skins">
+      <button data-skin="default">デフォルト</button>
+      <button data-skin="skin1">スキン1</button>
+      <button data-skin="skin2">スキン2</button>
+    </div>
+  </div>
+
+  <!-- ゲーム開始ボタン -->
+  <button id="start-game">ゲーム開始</button>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCTUu8yTqFsV1hscYcdMYSgEDV7Tzg5Qqs",
+      authDomain: "brject-3c32c.firebaseapp.com",
+      projectId: "brject-3c32c",
+      storageBucket: "brject-3c32c.firebasestorage.app",
+      messagingSenderId: "963616343395",
+      appId: "1:963616343395:web:eb0b00c38a3ae5cf7eff56"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const playersDiv = document.getElementById("players");
+    const skinsDiv = document.getElementById("skins");
+    const startBtn = document.getElementById("start-game");
+
+    // 認証チェック
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html"; // ログインしていなければ戻す
+        return;
+      }
+      await loadPlayers();
+      await loadCurrentSkin(user.uid);
+    });
+
+    // Firestore からユーザー一覧を取得
+    async function loadPlayers() {
+      playersDiv.innerHTML = "<p>読み込み中...</p>";
+      const querySnapshot = await getDocs(collection(db, "users"));
+      playersDiv.innerHTML = "";
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const div = document.createElement("div");
+        div.classList.add("player-item");
+        div.textContent = data.playerName || data.email;
+        playersDiv.appendChild(div);
+      });
+    }
+
+    // 現在のスキンを選択状態に反映
+    async function loadCurrentSkin(uid) {
+      const userRef = doc(db, "users", uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) return;
+      const currentSkin = snap.data().skin || "default";
+
+      Array.from(skinsDiv.children).forEach(btn => {
+        btn.style.border = (btn.dataset.skin === currentSkin) ? "2px solid #fff" : "none";
+      });
+    }
+
+    // スキン選択ボタン
+    skinsDiv.addEventListener("click", async (e) => {
+      if (e.target.tagName !== "BUTTON") return;
+      const skinId = e.target.dataset.skin;
+      const uid = auth.currentUser.uid;
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, { skin: skinId }, { merge: true });
+      // 選択状態反映
+      loadCurrentSkin(uid);
+      alert("スキンを変更しました: " + skinId);
+    });
+
+    // ゲーム開始
+    startBtn.addEventListener("click", () => {
+      window.location.href = "game.html"; // 後で作るゲーム画面
+    });
+  </script>
+</body>
+</html>
