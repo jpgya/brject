@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brject - ログイン</title>
-  
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,107 +59,117 @@
       background: #ffaa00;
     }
 
-    .link {
-      color: #ffcc00;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-    .link:hover {
-      text-decoration: underline;
+    #setup-section {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
     }
   </style>
+</head>
+<body>
+  <h1>Brject</h1>
+  <form id="auth-form">
+    <input type="email" id="email" placeholder="メールアドレス" required>
+    <input type="password" id="password" placeholder="パスワード" required>
+    <button type="button" id="login-btn">ログイン</button>
+    <button type="button" id="signup-btn">新規登録</button>
+  </form>
 
+  <div id="setup-section">
+    <h3>初期設定</h3>
+    <input type="text" id="player-name" placeholder="プレイヤー名を入力">
+    <button id="start-btn">ゲーム開始</button>
+  </div>
 
   <script type="module">
-    // Firebase SDK 読み込み
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    // 公式Firebase初期化
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } 
-      from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+      from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc } 
-      from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+      from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-    // Firebase 設定
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
+      apiKey: "AIzaSyCTUu8yTqFsV1hscYcdMYSgEDV7Tzg5Qqs",
       authDomain: "brject-3c32c.firebaseapp.com",
       projectId: "brject-3c32c",
-      storageBucket: "brject-3c32c.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      storageBucket: "brject-3c32c.firebasestorage.app",
+      messagingSenderId: "963616343395",
+      appId: "1:963616343395:web:eb0b00c38a3ae5cf7eff56"
     };
 
-    // 初期化
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 新規登録
-    document.getElementById('signup-btn').addEventListener('click', async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
+    const loginBtn = document.getElementById("login-btn");
+    const signupBtn = document.getElementById("signup-btn");
+    const setupSection = document.getElementById("setup-section");
+    const startBtn = document.getElementById("start-btn");
 
+    // 新規登録
+    signupBtn.addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        console.log("新規ユーザー登録:", userCredential.user.uid);
-        await saveInitialData(userCredential.user.uid, email);
-        alert("初期設定が完了しました！");
+        alert("登録成功！続けて初期設定を行ってください。");
+        setupSection.style.display = "block";
       } catch (error) {
-        console.error("登録エラー:", error.message);
-        alert(error.message);
+        alert("登録失敗: " + error.message);
       }
     });
 
     // ログイン
-    document.getElementById('login-btn').addEventListener('click', async () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
+    loginBtn.addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("ログイン成功:", userCredential.user.uid);
         await checkUserData(userCredential.user.uid);
       } catch (error) {
-        console.error("ログインエラー:", error.message);
-        alert(error.message);
+        alert("ログイン失敗: " + error.message);
       }
     });
 
-    // 初期データ保存（初回ログイン時のみ）
-    async function saveInitialData(uid, email) {
-      const userRef = doc(db, "users", uid);
-      await setDoc(userRef, {
-        email: email,
-        createdAt: new Date(),
-        level: 1,
-        coins: 0
-      });
-    }
-
-    // Firestore データ確認
+    // 初回ユーザーデータ確認・作成
     async function checkUserData(uid) {
       const userRef = doc(db, "users", uid);
       const snap = await getDoc(userRef);
       if (snap.exists()) {
-        console.log("既存データ:", snap.data());
-        alert("ログイン完了。ようこそ " + snap.data().email);
+        // データあり → Lobby へ
+        window.location.href = "lobby.html";
       } else {
-        await saveInitialData(uid, auth.currentUser.email);
+        // 初回ログイン → 初期設定画面表示
+        setupSection.style.display = "block";
       }
     }
 
-    // 状態監視
+    // 初期設定保存
+    startBtn.addEventListener("click", async () => {
+      const playerName = document.getElementById("player-name").value.trim();
+      if (!playerName) {
+        alert("プレイヤー名を入力してください");
+        return;
+      }
+      const uid = auth.currentUser.uid;
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, {
+        email: auth.currentUser.email,
+        playerName: playerName,
+        createdAt: new Date(),
+        level: 1,
+        coins: 0
+      });
+      window.location.href = "lobby.html";
+    });
+
+    // 認証状態監視
     onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("ログイン済:", user.uid);
       }
     });
   </script>
-</head>
-<body>
-  <h1>Brject</h1>
-  <input type="email" id="email" placeholder="メールアドレス">
-  <input type="password" id="password" placeholder="パスワード">
-  <button id="signup-btn">新規登録</button>
-  <button id="login-btn">ログイン</button>
 </body>
 </html>
