@@ -39,7 +39,14 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js";
 
-const firebaseConfig = { apiKey:"AIzaSyCTUu8yTqFsV1hscYcdMYSgEDV7Tzg5Qqs", authDomain:"brject-3c32c.firebaseapp.com", projectId:"brject-3c32c", storageBucket:"brject-3c32c.firebasestorage.app", messagingSenderId:"963616343395", appId:"1:963616343395:web:eb0b00c38a3ae5cf7eff56"};
+const firebaseConfig = {
+  apiKey: "AIzaSyD8c_Bo5Yvnkti-8bW_-066VfLVEGwN4IU",
+  authDomain: "brject-b80bd.firebaseapp.com",
+  projectId: "brject-b80bd",
+  storageBucket: "brject-b80bd.firebasestorage.app",
+  messagingSenderId: "695895491361",
+  appId: "1:695895491361:web:1b8ccd8aa8c8a560d5b460"
+};
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
