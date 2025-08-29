@@ -125,28 +125,51 @@
     const startBtn = document.getElementById("start-game");
 
     // 認証チェック
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        window.location.href = "index.html"; // ログインしていなければ戻す
-        return;
-      }
-      await loadPlayers();
-      await loadCurrentSkin(user.uid);
-    });
+    // 認証チェック
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "index.html";
+    return;
+  }
 
-    // Firestore からユーザー一覧を取得
-    async function loadPlayers() {
-      playersDiv.innerHTML = "<p>読み込み中...</p>";
-      const querySnapshot = await getDocs(collection(db, "users"));
-      playersDiv.innerHTML = "";
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const div = document.createElement("div");
-        div.classList.add("player-item");
-        div.textContent = data.playerName || data.email;
-        playersDiv.appendChild(div);
-      });
+  // オンラインとして追加（lastActive 更新）
+  const userRef = doc(db, "players", user.uid);
+  await setDoc(userRef, { playerName: user.displayName || "Player", lastActive: serverTimestamp() }, { merge: true });
+
+  // オンラインプレイヤーを取得
+  await loadOnlinePlayers();
+
+  // 以降、5秒ごとに online 状態を更新
+  setInterval(async () => {
+    await setDoc(userRef, { lastActive: serverTimestamp() }, { merge: true });
+  }, 5000);
+
+  // 現在のスキンを反映
+  await loadCurrentSkin(user.uid);
+});
+
+// オンラインプレイヤーのみ表示
+async function loadOnlinePlayers() {
+  playersDiv.innerHTML = "<p>読み込み中...</p>";
+  const now = new Date();
+  const querySnapshot = await getDocs(collection(db, "players"));
+  playersDiv.innerHTML = "";
+
+  querySnapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+    const lastActive = data.lastActive?.toDate ? data.lastActive.toDate() : null;
+    if (lastActive && (now - lastActive <= 5000)) { // 5秒以内ならオンライン
+      const div = document.createElement("div");
+      div.textContent = data.playerName;
+      playersDiv.appendChild(div);
     }
+  });
+
+  if (playersDiv.children.length === 0) {
+    playersDiv.innerHTML = "<p>オンラインのプレイヤーはいません</p>";
+  }
+}
+
 
     // 現在のスキンを選択状態に反映
     async function loadCurrentSkin(uid) {
